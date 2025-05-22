@@ -1,7 +1,7 @@
-streamlit
-speechbrain
-torch
-torchaudio
-requests
-yt-dlp
-soundfile
+streamlit==1.31.1
+requests==2.31.0
+torch==2.1.2
+torchaudio==2.1.2
+speechbrain==0.5.16
+yt-dlp==2023.12.30
+ffmpeg-python==0.2.0
