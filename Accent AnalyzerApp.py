@@ -7,26 +7,28 @@ from urllib.parse import urlparse
 from speechbrain.inference.classifiers import EncoderClassifier
 import glob
 import shutil
-from pydub import AudioSegment
 import torchaudio
+import warnings
+from pydub import AudioSegment
+
+# Suppress warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # Configuration
 SPEECHBRAIN_MODEL = "Jzuluaga/accent-id-commonaccent_ecapa"
+
+# Configure pydub
+AudioSegment.converter = "ffmpeg"
+AudioSegment.ffmpeg = "ffmpeg"
+AudioSegment.ffprobe = "ffprobe"
 
 # Initialize SpeechBrain model
 @st.cache_resource
 def load_accent_model():
     """Load SpeechBrain accent identification model"""
     try:
-        # Set torchaudio backend
-        try:
-            torchaudio.set_audio_backend("soundfile")
-        except:
-            try:
-                torchaudio.set_audio_backend("sox_io")
-            except:
-                pass
-        
         model = EncoderClassifier.from_hparams(SPEECHBRAIN_MODEL)
         return model
     except Exception as e:
@@ -94,21 +96,34 @@ def download_video(url, save_path):
         return download_with_ytdlp(url, save_path)
 
 def extract_audio(video_path, audio_path):
-    """Audio extraction using pydub"""
+    """Audio extraction with multiple fallback methods"""
     try:
-        # Load video file
-        audio = AudioSegment.from_file(video_path)
+        # Method 1: Try pydub first
+        try:
+            audio = AudioSegment.from_file(video_path)
+            audio.set_frame_rate(16000).set_channels(1).export(
+                audio_path, 
+                format="wav",
+                codec="pcm_s16le"
+            )
+            return True
+        except Exception as e:
+            st.warning(f"Pydub failed, trying ffmpeg directly: {e}")
+            
+        # Method 2: Fallback to direct ffmpeg command
+        cmd = [
+            'ffmpeg',
+            '-y',
+            '-i', video_path,
+            '-ac', '1',
+            '-ar', '16000',
+            '-acodec', 'pcm_s16le',
+            audio_path
+        ]
         
-        # Export as WAV with 16kHz sample rate, mono channel
-        audio.set_frame_rate(16000).set_channels(1).export(
-            audio_path, 
-            format="wav",
-            codec="pcm_s16le"
-        )
-        
-        # Validate output file
-        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
-            raise ValueError("Empty audio file generated")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise ValueError(f"FFmpeg failed: {result.stderr}")
             
         return True
         
@@ -177,6 +192,13 @@ def format_accent_name(accent):
 # --- Streamlit UI ---
 st.title("🎙️ Accent Analyzer")
 st.write("Analyze English accents from video URLs")
+
+# Check for ffmpeg
+try:
+    subprocess.run(['ffmpeg', '-version'], check=True, capture_output=True)
+    st.success("FFmpeg is available")
+except:
+    st.warning("FFmpeg is not properly installed. Audio processing may fail.")
 
 # Load model
 with st.spinner("Loading model..."):
