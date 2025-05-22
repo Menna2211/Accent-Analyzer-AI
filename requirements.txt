@@ -5,4 +5,5 @@ torchaudio>=2.1.2
 speechbrain>=0.5.16
 yt-dlp>=2023.12.30
 sentencepiece>=0.1.99
-moviepy>=1.0.3
+moviepy
+
