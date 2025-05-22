@@ -5,3 +5,4 @@ torchaudio>=2.1.2
 speechbrain>=0.5.16
 yt-dlp>=2023.12.30
 ffmpeg-python>=0.2.0
+sentencepiece>=0.1.99
