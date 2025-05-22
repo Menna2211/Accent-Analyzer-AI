@@ -4,10 +4,11 @@ import streamlit as st
 import requests
 import subprocess
 from urllib.parse import urlparse
-from speechbrain.pretrained import EncoderClassifier
+from speechbrain.inference.classifiers import EncoderClassifier
 import glob
 import shutil
-
+from pydub import AudioSegment
+import torchaudio
 
 # Configuration
 SPEECHBRAIN_MODEL = "Jzuluaga/accent-id-commonaccent_ecapa"
@@ -17,7 +18,7 @@ SPEECHBRAIN_MODEL = "Jzuluaga/accent-id-commonaccent_ecapa"
 def load_accent_model():
     """Load SpeechBrain accent identification model"""
     try:
-        import torchaudio
+        # Set torchaudio backend
         try:
             torchaudio.set_audio_backend("soundfile")
         except:
@@ -87,53 +88,30 @@ def download_video(url, save_path):
                     raise ValueError("Downloaded file is empty")
 
             return True
-
         else:
             return download_with_ytdlp(url, save_path)
-
     except Exception as e:
         return download_with_ytdlp(url, save_path)
 
-from moviepy.editor import VideoFileClip
-import wave
-
 def extract_audio(video_path, audio_path):
-    """Audio extraction using moviepy, optimized for SpeechBrain with validation."""
+    """Audio extraction using pydub"""
     try:
-        video = VideoFileClip(video_path)
-
-        if video.duration is None or video.duration == 0:
-            raise ValueError("Invalid video file or zero duration")
-
-        audio = video.audio
-        if audio is None:
-            raise ValueError("No audio stream found in video file.")
-
-        # Write audio to wav file
-        audio.write_audiofile(audio_path, fps=16000, nbytes=2, nchannels=1, codec='pcm_s16le')
-        audio.close()
-        video.close()
-
-        # Validate generated audio file size & duration
+        # Load video file
+        audio = AudioSegment.from_file(video_path)
+        
+        # Export as WAV with 16kHz sample rate, mono channel
+        audio.set_frame_rate(16000).set_channels(1).export(
+            audio_path, 
+            format="wav",
+            codec="pcm_s16le"
+        )
+        
+        # Validate output file
         if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
             raise ValueError("Empty audio file generated")
-
-        # Optional: check wav duration matches video audio duration approximately
-        with wave.open(audio_path, 'rb') as wav_file:
-            frames = wav_file.getnframes()
-            rate = wav_file.getframerate()
-            duration = frames / float(rate)
-            if abs(duration - video.duration) > 1.0:  # allow 1 second tolerance
-                st.warning("Warning: Audio duration differs significantly from video duration.")
-
+            
         return True
-
-    except Exception as e:
-        st.error(f"Audio extraction failed: {str(e)}")
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
-        return False
-
+        
     except Exception as e:
         st.error(f"Audio extraction failed: {str(e)}")
         if os.path.exists(audio_path):
