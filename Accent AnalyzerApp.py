@@ -7,6 +7,11 @@ from urllib.parse import urlparse
 from speechbrain.pretrained import EncoderClassifier
 import glob
 import shutil
+import imageio_ffmpeg  # Add this import
+
+# Override system binaries with Python package binaries
+os.environ["FFMPEG_BINARY"] = imageio_ffmpeg.get_ffmpeg_exe()
+os.environ["FFPROBE_BINARY"] = imageio_ffmpeg.get_ffprobe_exe()
 
 # Configuration
 SPEECHBRAIN_MODEL = "Jzuluaga/accent-id-commonaccent_ecapa"
