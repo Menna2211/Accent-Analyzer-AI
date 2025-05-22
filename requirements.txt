@@ -6,4 +6,6 @@ speechbrain>=0.5.16
 yt-dlp>=2023.12.30
 sentencepiece>=0.1.99
 moviepy
-
+numpy 
+imageio 
+imageio-ffmpeg
